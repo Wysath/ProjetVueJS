@@ -6,8 +6,8 @@
       <button @click="logout">Logout</button>
       <button @click="createContent">Create Content</button>
       <button v-if="hasAdminRole" @click="router.push('/admin')">Admin</button>
+      <router-link to="/articles">Articles</router-link>
     </template>
-    <router-link to="/articles">Articles</router-link>
   </div>
 </template>
 
