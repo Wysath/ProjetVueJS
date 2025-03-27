@@ -99,6 +99,119 @@ const canAddComment = computed(() => {
   return session.hasRole('ROLE_SUBSCRIBER') || session.hasRole('ROLE_ADMIN')
 })
 
+// Fonction pour récupérer les détails de l'auteur
+const fetchAuthor = async (authorUrl) => {
+  try {
+    const uuid = authorUrl.split('/').pop()
+    const response = await api(`/api/users/${uuid}`, {}, false)
+    return { name: response.email.split('@')[0] }
+  } catch (error) {
+    console.error('Error fetching author details:', error)
+    return { name: 'Unknown Author' }
+  }
+}
+
+// Fonction pour formatter l'UUID
+const formatUUID = (authorUrl) => {
+  if (!authorUrl) return ''
+  return authorUrl.split('/').pop()
+}
+
+// Fonction pour récupérer l'email d'un utilisateur depuis l'API
+const getUserEmail = async (authorUrl) => {
+  const uuid = formatUUID(authorUrl)
+
+  if (userEmails.value[uuid]) {
+    return userEmails.value[uuid].split('@')[0]
+  }
+
+  try {
+    const response = await api(`/api/users/${uuid}`, {}, false)
+    const email = response.email
+
+    userEmails.value[uuid] = email
+    sessionStorage.setItem(`userEmail_${uuid}`, email)
+
+    return email.split('@')[0]
+  } catch (error) {
+    console.error('Error fetching user email:', error)
+    return 'Unknown User'
+  }
+}
+
+// Fonction pour récupérer un email d'utilisateur en cache
+const getCachedUserEmail = (authorUrl) => {
+  const uuid = formatUUID(authorUrl)
+  const cachedEmail = sessionStorage.getItem(`userEmail_${uuid}`)
+
+  if (cachedEmail) {
+    userEmails.value[uuid] = cachedEmail
+    return cachedEmail.split('@')[0]
+  }
+  return null
+}
+
+// Fonction pour éditer un article
+const editArticle = () => {
+  isEditing.value = true
+  editedContent.value = { ...article.value }
+}
+
+// Fonction pour sauvegarder les modifications d'un article
+const saveArticle = async () => {
+  try {
+    const token = sessionStorage.getItem('token')
+    if (!token) {
+      alert('Authentication token is missing.')
+      return
+    }
+
+    const response = await api(`${article.value['@id']}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/ld+json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(editedContent.value),
+    })
+
+    article.value = response
+    isEditing.value = false
+    alert('Article updated successfully!')
+  } catch (error) {
+    console.error('Error updating article:', error)
+    alert('Failed to update article.')
+  }
+}
+
+// Fonction pour supprimer un article
+const deleteArticle = async () => {
+  if (!confirm('Are you sure you want to delete this article?')) {
+    return
+  }
+
+  try {
+    const token = sessionStorage.getItem('token')
+    if (!token) {
+      alert('Authentication token is missing.')
+      return
+    }
+
+    await api(`${article.value['@id']}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    alert('Article deleted successfully!')
+    router.push('/articles')
+  } catch (error) {
+    console.error('Error deleting article:', error)
+    alert('Failed to delete article.')
+  }
+}
+
 // Ajouter un commentaire
 const addComment = async () => {
   if (!canAddComment.value) {
@@ -131,8 +244,6 @@ const addComment = async () => {
       body: JSON.stringify({
         comment: newComment.value,
         content: article.value['@id'],
-        // Ajouter explicitement l'auteur si nécessaire
-        author: `/api/users/${session.user.uuid}`,
       }),
     })
 
@@ -146,9 +257,7 @@ const addComment = async () => {
   }
 }
 
-// Le reste de votre code existant...
-
-// Modifications à la fonction fetchArticle pour utiliser sessionStorage
+// Récupérer l'article et ses commentaires
 const fetchArticle = async () => {
   try {
     // Récupérer les détails de l'article
@@ -186,7 +295,7 @@ const fetchArticle = async () => {
   }
 }
 
-// Fonction pour annuler l'édition (ajout)
+// Fonction pour annuler l'édition
 const cancelEdit = () => {
   isEditing.value = false
   editedContent.value = {}
