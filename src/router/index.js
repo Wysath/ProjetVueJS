@@ -8,13 +8,14 @@ import Articles from '@/components/Articles.vue'
 import ArticleDetails from '@/components/ArticleDetails.vue'
 import CreateContent from '@/components/CreateContent.vue'
 import AdminView from '@/views/AdminView.vue'
+import ProfileView from '@/views/ProfileView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      component: App,
+      component: Home,
     },
     {
       path: '/home',
@@ -41,6 +42,10 @@ const router = createRouter({
     {
       path: '/admin',
       component: AdminView,
+    },
+    {
+      path: '/profile',
+      component: ProfileView,
     },
   ],
 })

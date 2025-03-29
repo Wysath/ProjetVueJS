@@ -1,58 +1,188 @@
 <template>
-  <div>
-    <div v-if="!article">
-      <p>Loading article...</p>
+  <div class="article-details-container">
+    <div v-if="!article" class="loading-container">
+      <div class="spinner animate-color-change"></div>
+      <p>Chargement de l'article...</p>
     </div>
-    <div v-else>
-      <h1>{{ article.title }}</h1>
-      <img :src="article.coverImage" alt="Cover Image" />
-      <p>{{ article.metaDescription }}</p>
-      <p>
-        <strong>Author: {{ article.authorDetails?.name || 'Unknown Author' }}</strong>
-      </p>
-      <p><strong>Created At:</strong> {{ new Date(article.createdAt).toLocaleDateString() }}</p>
-      <p><strong>Tags:</strong> {{ article.tags.join(', ').replace(/\|/g, ', ') }}</p>
 
-      <div v-if="isAuthor || hasRole('ROLE_ADMIN')">
-        <button v-if="isAuthor" @click="editArticle">Edit Article</button>
-        <button @click="deleteArticle">Delete Article</button>
-      </div>
+    <div v-else class="article-content glass animate-fade-in">
+      <!-- En-tête de l'article avec image de couverture -->
+      <div class="article-header">
+        <div class="color-accent animate-morphing"></div>
+        <h1 class="article-title">{{ article.title }}</h1>
+        <div class="article-meta">
+          <div class="author-info">
+            <span class="author-avatar" :style="getAuthorAvatarStyle(article.author)"></span>
+            <span class="author-name">{{ article.authorDetails?.name || 'Unknown Author' }}</span>
+          </div>
+          <div class="article-date">
+            <span class="icon-calendar"></span>
+            {{ formatDate(article.createdAt) }}
+          </div>
+        </div>
 
-      <!-- Formulaire d'édition -->
-      <div v-if="isEditing">
-        <textarea v-model="editedContent.title" placeholder="Edit title"></textarea>
-        <textarea v-model="editedContent.metaDescription" placeholder="Edit description"></textarea>
-        <textarea v-model="editedContent.body" placeholder="Edit content"></textarea>
-        <button @click="saveArticle">Save Changes</button>
-        <button @click="cancelEdit">Cancel</button>
-      </div>
-
-      <!-- Section des commentaires -->
-      <h2>Comments</h2>
-      <div v-if="comments.length === 0">
-        <p>No comments yet. Be the first to comment!</p>
-      </div>
-      <div v-else>
-        <div v-for="comment in comments" :key="comment.uuid" class="comment">
-          <p>
-            <strong>
-              {{ getCachedUserEmail(comment.author) || getUserEmail(comment.author) }} </strong
-            >:
-            {{ comment.comment }}
-          </p>
+        <div class="tags-container" v-if="article.tags && article.tags.length">
+          <span v-for="(tag, index) in article.tags" :key="index" class="tag">
+            {{ tag }}
+          </span>
         </div>
       </div>
 
-      <!-- Formulaire pour ajouter un commentaire -->
-      <div v-if="isLoggedIn && canAddComment">
-        <textarea v-model="newComment" placeholder="Add a comment"></textarea>
-        <button @click="addComment">Submit Comment</button>
+      <!-- Image de couverture avec effet parallaxe -->
+      <div class="cover-image-container">
+        <img
+          v-if="article.coverImage"
+          :src="article.coverImage"
+          alt="Cover Image"
+          class="cover-image"
+        />
+        <div v-else class="placeholder-image animate-morphing">
+          <div class="color-preview" :style="getArticleColorStyle(article)"></div>
+        </div>
       </div>
-      <div v-else-if="isLoggedIn">
-        <p>You must be a Subscriber to add a comment.</p>
+
+      <!-- Corps de l'article -->
+      <div class="article-body">
+        <p class="article-description">{{ article.metaDescription }}</p>
+        <div class="article-content-body" v-html="article.body"></div>
       </div>
-      <div v-else>
-        <p>You must be logged in to add a comment.</p>
+
+      <!-- Actions pour l'auteur ou admin -->
+      <div v-if="isAuthor || hasRole('ROLE_ADMIN')" class="article-actions">
+        <button v-if="isAuthor" @click="editArticle" class="btn btn-edit">
+          <span class="btn-icon">✎</span>
+          Modifier
+        </button>
+        <button @click="deleteArticle" class="btn btn-delete">
+          <span class="btn-icon">✕</span>
+          Supprimer
+        </button>
+      </div>
+
+      <!-- Formulaire d'édition -->
+      <div v-if="isEditing" class="edit-form glass">
+        <h3>Modifier l'article</h3>
+        <div class="form-group">
+          <label for="edit-title">Titre</label>
+          <input
+            id="edit-title"
+            type="text"
+            v-model="editedContent.title"
+            placeholder="Titre de l'article"
+            class="glass-input"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-description">Description</label>
+          <textarea
+            id="edit-description"
+            v-model="editedContent.metaDescription"
+            placeholder="Description de l'article"
+            class="glass-input"
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-content">Contenu</label>
+          <textarea
+            id="edit-content"
+            v-model="editedContent.body"
+            placeholder="Contenu de l'article"
+            class="glass-input"
+            rows="10"
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button @click="saveArticle" class="btn btn-save">Enregistrer</button>
+          <button @click="cancelEdit" class="btn btn-cancel">Annuler</button>
+        </div>
+      </div>
+
+      <!-- Section des commentaires -->
+      <div class="comments-section">
+        <h2 class="section-title">Commentaires</h2>
+
+        <div v-if="comments.length === 0" class="no-comments">
+          <div class="empty-comments">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z"
+                fill="currentColor"
+              />
+              <path d="M12 10H16V12H12V10ZM6 10H10V12H6V10ZM8 14H16V16H8V14Z" fill="currentColor" />
+            </svg>
+            <p>Aucun commentaire pour le moment. Soyez le premier à réagir !</p>
+          </div>
+        </div>
+
+        <div v-else class="comments-list">
+          <div v-for="comment in comments" :key="comment.uuid" class="comment-card glass">
+            <div class="comment-header">
+              <div class="comment-author">
+                <span class="user-avatar" :style="getAuthorAvatarStyle(comment.author)"></span>
+                <strong>{{
+                  getCachedUserEmail(comment.author) || getUserEmail(comment.author)
+                }}</strong>
+              </div>
+              <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+            </div>
+            <!-- Mode d'affichage normal du commentaire -->
+            <div v-if="editingCommentId !== comment.uuid" class="comment-body">
+              {{ comment.comment }}
+
+              <!-- Afficher les boutons d'action uniquement pour l'auteur du commentaire -->
+              <div v-if="isCommentAuthor(comment.author)" class="comment-actions">
+                <button @click="editComment(comment)" class="btn btn-edit btn-sm">
+                  <span class="btn-icon">✎</span>
+                  Modifier
+                </button>
+              </div>
+            </div>
+
+            <!-- Mode d'édition du commentaire -->
+            <div v-else class="comment-edit-form">
+              <textarea v-model="editedCommentText" class="glass-input" rows="3"></textarea>
+              <div class="comment-edit-actions">
+                <button @click="saveComment(comment)" class="btn btn-save btn-sm">
+                  Enregistrer
+                </button>
+                <button @click="cancelEditComment" class="btn btn-cancel btn-sm">Annuler</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulaire pour ajouter un commentaire -->
+        <div class="comment-form-container">
+          <div v-if="isLoggedIn && canAddComment" class="add-comment-form glass">
+            <h3>Ajouter un commentaire</h3>
+            <textarea
+              v-model="newComment"
+              placeholder="Partagez votre avis..."
+              class="glass-input"
+              rows="4"
+            ></textarea>
+            <button @click="addComment" class="btn btn-primary">Publier</button>
+          </div>
+
+          <div v-else-if="isLoggedIn" class="comment-restriction glass">
+            <p>
+              <span class="icon-info"></span>
+              Vous devez être abonné pour ajouter un commentaire.
+            </p>
+          </div>
+
+          <div v-else class="comment-restriction glass">
+            <p>
+              <span class="icon-lock"></span>
+              Vous devez être connecté pour ajouter un commentaire.
+            </p>
+            <button @click="router.push('/login')" class="btn btn-outline">Se connecter</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -64,7 +194,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { api } from '../services/api'
 import { useSession } from '../stores/session'
 
-// Récupération correcte des éléments du store
 const session = useSession()
 const router = useRouter()
 const route = useRoute()
@@ -76,10 +205,10 @@ const userEmails = ref({})
 const isEditing = ref(false)
 const editedContent = ref({})
 
-// Utiliser le store pour l'état de connexion
+const editingCommentId = ref(null)
+const editedCommentText = ref('')
 const isLoggedIn = computed(() => session.loggedIn)
 
-// Vérifier si l'utilisateur est l'auteur
 const isAuthor = computed(() => {
   const userUuid = session.user.uuid
   const authorUuid = article.value?.author?.split('/').pop()
@@ -91,15 +220,69 @@ const isAuthor = computed(() => {
   return userUuid === authorUuid
 })
 
-// Vérifier si l'utilisateur a un rôle spécifique
 const hasRole = (role) => session.hasRole(role)
 
-// Vérifier si l'utilisateur peut ajouter des commentaires
 const canAddComment = computed(() => {
   return session.hasRole('ROLE_SUBSCRIBER') || session.hasRole('ROLE_ADMIN')
 })
 
-// Fonction pour récupérer les détails de l'auteur
+const getAuthorAvatarStyle = (authorUrl) => {
+  if (!authorUrl) return {}
+
+  const uuid = formatUUID(authorUrl)
+
+  let hash = 0
+  for (let i = 0; i < uuid.length; i++) {
+    hash = uuid.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  const h = Math.abs(hash) % 360
+
+  return {
+    background: `linear-gradient(135deg, hsl(${h}, 80%, 60%), hsl(${(h + 60) % 360}, 80%, 45%))`,
+  }
+}
+
+const getArticleColorStyle = (article) => {
+  if (!article || !article.tags || !article.tags.length) {
+    return { background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))' }
+  }
+
+  const colorMappings = {
+    rouge: 'linear-gradient(135deg, #f44336 0%, #e91e63 100%)',
+    bleu: 'linear-gradient(135deg, #2196f3 0%, #03a9f4 100%)',
+    vert: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
+    violet: 'linear-gradient(135deg, #9c27b0 0%, #673ab7 100%)',
+    orange: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
+    jaune: 'linear-gradient(135deg, #ffeb3b 0%, #ffc107 100%)',
+    cyan: 'linear-gradient(135deg, #00bcd4 0%, #26c6da 100%)',
+    rose: 'linear-gradient(135deg, #e91e63 0%, #f48fb1 100%)',
+  }
+
+  for (const tag of article.tags) {
+    const tagLower = tag.toLowerCase()
+    for (const [colorName, gradient] of Object.entries(colorMappings)) {
+      if (tagLower.includes(colorName)) {
+        return { background: gradient }
+      }
+    }
+  }
+
+  return { background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))' }
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 const fetchAuthor = async (authorUrl) => {
   try {
     const uuid = authorUrl.split('/').pop()
@@ -111,13 +294,11 @@ const fetchAuthor = async (authorUrl) => {
   }
 }
 
-// Fonction pour formatter l'UUID
 const formatUUID = (authorUrl) => {
   if (!authorUrl) return ''
   return authorUrl.split('/').pop()
 }
 
-// Fonction pour récupérer l'email d'un utilisateur depuis l'API
 const getUserEmail = async (authorUrl) => {
   const uuid = formatUUID(authorUrl)
 
@@ -139,7 +320,6 @@ const getUserEmail = async (authorUrl) => {
   }
 }
 
-// Fonction pour récupérer un email d'utilisateur en cache
 const getCachedUserEmail = (authorUrl) => {
   const uuid = formatUUID(authorUrl)
   const cachedEmail = sessionStorage.getItem(`userEmail_${uuid}`)
@@ -151,13 +331,11 @@ const getCachedUserEmail = (authorUrl) => {
   return null
 }
 
-// Fonction pour éditer un article
 const editArticle = () => {
   isEditing.value = true
   editedContent.value = { ...article.value }
 }
 
-// Fonction pour sauvegarder les modifications d'un article
 const saveArticle = async () => {
   try {
     const token = sessionStorage.getItem('token')
@@ -184,7 +362,6 @@ const saveArticle = async () => {
   }
 }
 
-// Fonction pour supprimer un article
 const deleteArticle = async () => {
   if (!confirm('Are you sure you want to delete this article?')) {
     return
@@ -212,28 +389,23 @@ const deleteArticle = async () => {
   }
 }
 
-// Ajouter un commentaire
 const addComment = async () => {
-  if (!canAddComment.value) {
-    alert('You must be a Subscriber to add a comment.')
-    return
-  }
-
   if (!newComment.value.trim()) {
-    alert('Comment cannot be empty.')
+    alert('Le commentaire ne peut pas être vide.')
     return
   }
 
   try {
-    // Utiliser sessionStorage pour le token
     const token = sessionStorage.getItem('token')
     if (!token) {
-      alert('Authentication token is missing.')
+      alert("Token d'authentification manquant.")
       return
     }
 
-    console.log('Sending comment with token:', token)
-    console.log('Article ID:', article.value['@id'])
+    const commentData = {
+      comment: newComment.value,
+      content: article.value['@id'],
+    }
 
     const response = await api(`/api/comments`, {
       method: 'POST',
@@ -241,37 +413,117 @@ const addComment = async () => {
         'Content-Type': 'application/ld+json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        comment: newComment.value,
-        content: article.value['@id'],
-      }),
+      body: JSON.stringify(commentData),
     })
 
-    console.log('Comment added successfully:', response)
+    console.log("Réponse de l'API:", response)
     comments.value.push(response)
     newComment.value = ''
-    alert('Comment added successfully!')
+    alert('Commentaire ajouté avec succès!')
   } catch (error) {
-    console.error('Error adding comment:', error)
-    alert('Failed to add comment. Error: ' + error.message)
+    console.error("Erreur lors de l'ajout du commentaire:", error)
+    alert(`Échec de l'ajout du commentaire: ${error.message}`)
   }
 }
 
-// Récupérer l'article et ses commentaires
+const isCommentAuthor = (commentAuthorUrl) => {
+  if (!commentAuthorUrl || !session.user.uuid) {
+    console.log("Impossible de vérifier l'auteur:", {
+      commentAuthorUrl,
+      sessionUserUuid: session.user.uuid,
+    })
+    return false
+  }
+  const authorUuid = commentAuthorUrl.split('/').pop()
+  const isAuthor = session.user.uuid === authorUuid
+  console.log('Vérification auteur:', {
+    commentAuthorUrl,
+    authorUuid,
+    sessionUserUuid: session.user.uuid,
+    isAuthor,
+  })
+  return isAuthor
+}
+
+const editComment = (comment) => {
+  editingCommentId.value = comment.uuid
+  editedCommentText.value = comment.comment
+}
+
+const cancelEditComment = () => {
+  editingCommentId.value = null
+  editedCommentText.value = ''
+}
+
+const saveComment = async (comment) => {
+  try {
+    console.log('Tentative de modification du commentaire:', {
+      commentUuid: comment.uuid,
+      commentAuthor: comment.author,
+      currentUser: session.user.uuid,
+      isAuthor: isCommentAuthor(comment.author),
+      userRoles: session.user.roles,
+    })
+
+    const token = sessionStorage.getItem('token')
+    if (!token) {
+      alert("Token d'authentification manquant.")
+      return
+    }
+
+    const originalComment = await api(`/api/comments/${comment.uuid}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/ld+json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const commentData = {
+      ...originalComment,
+      comment: editedCommentText.value,
+    }
+
+    const response = await api(`/api/comments/${comment.uuid}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/ld+json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(commentData),
+    })
+
+    const index = comments.value.findIndex((c) => c.uuid === comment.uuid)
+    if (index !== -1) {
+      comments.value[index] = response
+    }
+
+    editingCommentId.value = null
+    editedCommentText.value = ''
+    alert('Commentaire modifié avec succès!')
+  } catch (error) {
+    console.error('Erreur lors de la modification du commentaire:', error)
+
+    if (error.message === '403') {
+      alert(
+        "Vous n'avez pas l'autorisation de modifier ce commentaire. Seul l'auteur du commentaire peut le modifier.",
+      )
+    } else {
+      alert(`Échec de la modification du commentaire: ${error.message}`)
+    }
+  }
+}
+
 const fetchArticle = async () => {
   try {
-    // Récupérer les détails de l'article
     const response = await api(`/api/contents/${route.params.id}`, {}, false)
     article.value = response
-    console.log('Article fetched:', article.value)
 
-    // Récupérer les détails de l'auteur
     if (article.value.author) {
       const authorDetails = await fetchAuthor(article.value.author)
       article.value.authorDetails = authorDetails
     }
 
-    // Récupérer les commentaires associés à l'article
     const commentsResponse = await api(
       `/api/comments`,
       {
@@ -295,7 +547,6 @@ const fetchArticle = async () => {
   }
 }
 
-// Fonction pour annuler l'édition
 const cancelEdit = () => {
   isEditing.value = false
   editedContent.value = {}
@@ -303,13 +554,522 @@ const cancelEdit = () => {
 
 onMounted(() => {
   fetchArticle()
+
+  const token = sessionStorage.getItem('token')
+  console.log('Token présent:', !!token)
+  console.log('Rôles utilisateur:', session.user.roles)
+  console.log('ROLE_ADMIN présent:', session.hasRole('ROLE_ADMIN'))
+  console.log('ROLE_SUBSCRIBER présent:', session.hasRole('ROLE_SUBSCRIBER'))
+  console.log('canAddComment:', canAddComment.value)
 })
 </script>
 
 <style scoped>
-.comment {
-  margin-bottom: 10px;
-  padding: 10px;
-  border: 1px solid #ccc;
+.article-details-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-md);
+}
+
+/* Animation de chargement */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 70vh;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 5px solid rgba(126, 87, 194, 0.2);
+  border-top-color: var(--primary-color);
+  animation: spin 1s infinite linear;
+  margin-bottom: var(--space-md);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Article principal */
+.article-content {
+  position: relative;
+  overflow: hidden;
+  margin: var(--space-xl) auto;
+  padding-bottom: var(--space-lg);
+  border-radius: var(--border-radius-lg);
+}
+
+.color-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  z-index: 2;
+  background: linear-gradient(
+    90deg,
+    var(--primary-color),
+    var(--accent-color),
+    var(--secondary-color),
+    var(--primary-color)
+  );
+  background-size: 300% 300%;
+  animation: colorChange 8s infinite;
+}
+
+/* En-tête de l'article */
+.article-header {
+  position: relative;
+  padding: var(--space-xl) var(--space-xl) var(--space-lg);
+  text-align: center;
+}
+
+.article-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: var(--space-md);
+  line-height: 1.2;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.article-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-md);
+  font-size: 0.95rem;
+  color: var(--text-light);
+}
+
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.author-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: var(--shadow-sm);
+}
+
+.author-name {
+  font-weight: 600;
+}
+
+.article-date {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.icon-calendar::before {
+  content: '📅';
+  font-size: 1.1rem;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.tag {
+  background-color: rgba(126, 87, 194, 0.1);
+  color: var(--primary-color);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  transition: all var(--transition-normal);
+}
+
+.tag:hover {
+  background-color: rgba(126, 87, 194, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Image de couverture */
+.cover-image-container {
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.placeholder-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-preview {
+  width: 100%;
+  height: 100%;
+  animation: colorChange 8s infinite;
+  background-size: 200% 200%;
+}
+
+/* Corps de l'article */
+.article-body {
+  padding: var(--space-xl);
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+.article-description {
+  font-size: 1.25rem;
+  color: var(--text-light);
+  font-style: italic;
+  margin-bottom: var(--space-lg);
+  line-height: 1.6;
+  padding: 0 var(--space-md);
+  position: relative;
+}
+
+.article-description::before,
+.article-description::after {
+  content: '"';
+  font-size: 3rem;
+  color: var(--primary-color);
+  opacity: 0.2;
+  position: absolute;
+}
+
+.article-description::before {
+  left: -15px;
+  top: -15px;
+}
+
+.article-description::after {
+  right: -15px;
+  bottom: -30px;
+}
+
+.article-content-body {
+  word-break: break-word;
+}
+
+/* Actions pour l'article */
+.article-actions {
+  display: flex;
+  gap: var(--space-md);
+  margin: 0 var(--space-xl) var(--space-md);
+}
+
+/* Formulaire d'édition */
+.edit-form {
+  margin: var(--space-md) var(--space-xl);
+  padding: var(--space-lg);
+  border-radius: var(--border-radius-md);
+}
+
+.edit-form h3 {
+  margin-top: 0;
+  margin-bottom: var(--space-md);
+}
+
+.form-group {
+  margin-bottom: var(--space-md);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: 500;
+}
+
+.glass-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--border-radius-md);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(5px);
+  font-size: 1rem;
+  color: var(--text-color);
+  transition: all var(--transition-normal);
+  font-family: inherit;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(126, 87, 194, 0.2);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+/* Section des commentaires */
+.comments-section {
+  margin-top: var(--space-xxl);
+  padding: 0 var(--space-xl);
+}
+
+.section-title {
+  position: relative;
+  display: inline-block;
+  margin-bottom: var(--space-lg);
+  font-size: 1.8rem;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  width: 50px;
+  height: 4px;
+  background: var(--primary-color);
+  border-radius: var(--border-radius-sm);
+}
+
+.no-comments {
+  text-align: center;
+  padding: var(--space-lg) 0;
+}
+
+.empty-comments {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--text-light);
+}
+
+.empty-comments svg {
+  color: var(--gray-400);
+  margin-bottom: var(--space-md);
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.comment-card {
+  padding: var(--space-md);
+  border-radius: var(--border-radius-md);
+  transition: transform var(--transition-normal);
+}
+
+.comment-card:hover {
+  transform: translateY(-3px);
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.comment-author {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.comment-date {
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+.comment-body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* Formulaire de commentaire */
+.comment-form-container {
+  margin-top: var(--space-lg);
+}
+
+.add-comment-form {
+  padding: var(--space-md);
+  border-radius: var(--border-radius-md);
+}
+
+.add-comment-form h3 {
+  margin-top: 0;
+  margin-bottom: var(--space-md);
+  font-size: 1.2rem;
+}
+
+.add-comment-form textarea {
+  width: 100%;
+  margin-bottom: var(--space-md);
+}
+
+.comment-restriction {
+  padding: var(--space-md);
+  border-radius: var(--border-radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  text-align: center;
+}
+
+.comment-restriction p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.icon-info::before {
+  content: 'ⓘ';
+  font-size: 1.2rem;
+}
+
+.icon-lock::before {
+  content: '🔒';
+  font-size: 1.2rem;
+}
+
+/* Boutons stylisés */
+.btn {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--border-radius-md);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), #9575cd);
+  color: white;
+}
+
+.btn-edit {
+  background: linear-gradient(135deg, var(--secondary-color), #66bb6a);
+  color: white;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, #f44336, #ff7675);
+  color: white;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #4caf50, #8bc34a);
+  color: white;
+}
+
+.btn-cancel {
+  background: linear-gradient(135deg, #9e9e9e, #bdbdbd);
+  color: white;
+}
+
+.btn-outline {
+  border: 2px solid var(--primary-color);
+  background: transparent;
+  color: var(--primary-color);
+}
+
+.btn-outline:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-icon {
+  margin-right: var(--space-xs);
+}
+
+/* Media queries */
+@media (max-width: 768px) {
+  .article-title {
+    font-size: 2rem;
+  }
+
+  .article-meta {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .cover-image-container {
+    height: 250px;
+  }
+
+  .article-header,
+  .article-body,
+  .comments-section {
+    padding: var(--space-md);
+  }
+
+  .article-actions {
+    margin: 0 var(--space-md) var(--space-md);
+    flex-direction: column;
+  }
+
+  .edit-form {
+    margin: var(--space-md);
+  }
+}
+
+/* Actions sur les commentaires */
+.comment-actions {
+  margin-top: var(--space-sm);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.85rem;
+}
+
+.comment-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
 }
 </style>

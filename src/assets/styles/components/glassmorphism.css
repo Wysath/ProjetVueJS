@@ -1,0 +1,52 @@
+/* Classes de base pour l'effet glassmorphism */
+.glass {
+  background: var(--glass-background);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+  composes: glass;
+  border-radius: var(--border-radius-lg);
+  padding: var(--space-lg);
+  transition:
+    transform var(--transition-normal),
+    box-shadow var(--transition-normal);
+}
+
+.glass-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.glass-button {
+  composes: glass;
+  border-radius: var(--border-radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+}
+
+/* Neumorphism (Alternative) */
+.neuro {
+  background: var(--background-color);
+  box-shadow:
+    8px 8px 16px rgba(0, 0, 0, 0.1),
+    -8px -8px 16px rgba(255, 255, 255, 0.8);
+  border-radius: var(--border-radius-lg);
+}
+
+.neuro-inset {
+  background: var(--background-color);
+  box-shadow:
+    inset 8px 8px 16px rgba(0, 0, 0, 0.1),
+    inset -8px -8px 16px rgba(255, 255, 255, 0.8);
+  border-radius: var(--border-radius-lg);
+}
