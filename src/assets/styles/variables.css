@@ -1,0 +1,71 @@
+:root {
+  /* Palette de couleurs principale */
+  --primary-color: #7e57c2;
+  --secondary-color: #42b883;
+  --accent-color: #ff7675;
+
+  /* Nuances de gris */
+  --gray-100: #f8f9fa;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-400: #ced4da;
+  --gray-500: #adb5bd;
+  --gray-600: #6c757d;
+  --gray-700: #495057;
+  --gray-800: #343a40;
+  --gray-900: #212529;
+
+  /* Couleurs fonctionnelles */
+  --text-color: var(--gray-800);
+  --text-light: var(--gray-600);
+  --background-color: #ffffff;
+  --background-alt: var(--gray-100);
+
+  /* Valeurs d'espacement */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-xxl: 3rem;
+
+  /* Typographie */
+  --font-family-heading: 'Montserrat', sans-serif;
+  --font-family-body: 'Source Sans Pro', sans-serif;
+
+  /* Bordures et ombres */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 16px;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Effets glassmorphism */
+  --glass-background: rgba(255, 255, 255, 0.6);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  --glass-blur: blur(10px);
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.6s ease;
+}
+
+/* Classes utilitaires pour les dégradés */
+.gradient-purple-blue {
+  background: linear-gradient(135deg, #7e57c2 0%, #2196f3 100%);
+}
+
+.gradient-orange-pink {
+  background: linear-gradient(135deg, #ff9800 0%, #ff5252 100%);
+}
+
+.gradient-green-cyan {
+  background: linear-gradient(135deg, #4caf50 0%, #00bcd4 100%);
+}
+
+.gradient-yellow-orange {
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+}
