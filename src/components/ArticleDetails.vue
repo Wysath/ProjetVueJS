@@ -139,6 +139,10 @@
                   <span class="btn-icon">✎</span>
                   Modifier
                 </button>
+                <button @click="deleteComment(comment)" class="btn btn-delete btn-sm">
+                  <span class="btn-icon">🗑️</span>
+                  Supprimer
+                </button>
               </div>
             </div>
 
@@ -510,6 +514,70 @@ const saveComment = async (comment) => {
       )
     } else {
       alert(`Échec de la modification du commentaire: ${error.message}`)
+    }
+  }
+}
+
+const deleteComment = async (comment) => {
+  // Vérifier que l'utilisateur est bien l'auteur du commentaire
+  if (!isCommentAuthor(comment.author)) {
+    alert('Vous ne pouvez supprimer que vos propres commentaires.')
+    return
+  }
+
+  // Demander confirmation avant suppression
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce commentaire ?')) {
+    return
+  }
+
+  try {
+    const token = sessionStorage.getItem('token')
+    if (!token) {
+      alert("Token d'authentification manquant.")
+      return
+    }
+
+    // NOUVELLE APPROCHE : Récupérer d'abord le commentaire complet
+    const commentDetails = await api(`/api/comments/${comment.uuid}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/ld+json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    console.log('Détails du commentaire récupérés:', commentDetails)
+
+    // Ensuite envoyer la requête DELETE avec tous les headers nécessaires
+    await api(`/api/comments/${comment.uuid}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/ld+json',
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/ld+json',
+      },
+    })
+
+    // Supprimer le commentaire de la liste locale
+    comments.value = comments.value.filter((c) => c.uuid !== comment.uuid)
+    alert('Commentaire supprimé avec succès!')
+  } catch (error) {
+    console.error('Erreur lors de la suppression du commentaire:', error)
+
+    if (error.message === '403') {
+      // Ajout d'informations de débogage
+      console.error("Détails de l'erreur 403:", {
+        commentId: comment.uuid,
+        userUuid: session.user.uuid,
+        roles: session.user.roles,
+        isLoggedIn: session.loggedIn,
+      })
+
+      alert(
+        "Vous n'avez pas l'autorisation de supprimer ce commentaire. Vérifiez que vous êtes bien connecté et que vous êtes l'auteur du commentaire.",
+      )
+    } else {
+      alert(`Échec de la suppression du commentaire: ${error.message}`)
     }
   }
 }
@@ -1049,11 +1117,20 @@ onMounted(() => {
   }
 }
 
-/* Actions sur les commentaires */
 .comment-actions {
   margin-top: var(--space-sm);
   display: flex;
   justify-content: flex-end;
+  gap: var(--space-xs);
+}
+
+.btn-delete.btn-sm {
+  background: linear-gradient(135deg, #f44336, #ff7675);
+  color: white;
+}
+
+.btn-delete.btn-sm:hover {
+  background: linear-gradient(135deg, #e53935, #ff5252);
 }
 
 .btn-sm {
