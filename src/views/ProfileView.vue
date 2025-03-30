@@ -188,24 +188,18 @@ import { api } from '../services/api'
 const router = useRouter()
 const session = useSession()
 
-// Variables pour gérer l'état de l'abonnement
 const subscribing = ref(false)
 
-// Méthode pour s'abonner
-// Remplacez la fonction subscribeUser par celle-ci:
 const subscribeUser = async () => {
   try {
     subscribing.value = true
 
-    // Simuler un délai de traitement pour donner l'impression que quelque chose se passe
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    // Afficher le message que la fonctionnalité est à venir
     alert(
       "Cette fonctionnalité sera bientôt disponible!\n\nNotre système d'abonnement est en cours de développement. Merci pour votre patience.",
     )
 
-    // Éventuellement, vous pourriez laisser un message dans la console pour les développeurs
     console.log("TO-DO: Implémenter l'API d'abonnement côté backend")
   } catch (error) {
     console.error('Erreur:', error)
@@ -214,7 +208,6 @@ const subscribeUser = async () => {
   }
 }
 
-// État du formulaire
 const currentEmail = ref('')
 const newEmail = ref('')
 const currentPassword = ref('')
@@ -222,7 +215,6 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const emailNotifications = ref(true)
 
-// Validation
 const passwordMismatch = computed(() => {
   return (
     newPassword.value !== '' &&
@@ -231,7 +223,6 @@ const passwordMismatch = computed(() => {
   )
 })
 
-// Calcul de l'avatar et des rôles
 const avatarStyle = computed(() => {
   const uuid = session.user.uuid || ''
   let hash = 0
@@ -265,6 +256,7 @@ const isSubscriber = computed(() => {
 })
 
 // Méthodes
+// Fonction correctement fermée avec gestion des erreurs
 const updateEmail = async () => {
   try {
     if (newEmail.value === currentEmail.value) {
@@ -279,18 +271,28 @@ const updateEmail = async () => {
       return
     }
 
-    const response = await api(`/api/users/${session.user.uuid}`, {
+    // D'abord récupérer l'utilisateur complet
+    const currentUser = await api(`/api/users/${session.user.uuid}`, {
+      headers: {
+        'Content-Type': 'application/ld+json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    // Puis mettre à jour seulement l'email
+    await api(`/api/users/${session.user.uuid}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/ld+json',
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
+        ...currentUser, // Conserver tous les champs existants
         email: newEmail.value,
       }),
     })
 
-    // Mise à jour du store session
+    // Mettre à jour l'email dans la session
     session.login(
       {
         ...session.user,
@@ -301,10 +303,14 @@ const updateEmail = async () => {
 
     currentEmail.value = newEmail.value
     newEmail.value = ''
-    alert('Votre email a été mis à jour avec succès.')
+    alert('Votre adresse email a été modifiée avec succès.')
   } catch (error) {
     console.error("Erreur lors de la mise à jour de l'email:", error)
-    alert(`Échec de la mise à jour de l'email: ${error.message || 'Erreur inconnue'}`)
+    if (error.message === '422') {
+      alert('Cette adresse email est invalide ou déjà utilisée.')
+    } else {
+      alert(`Échec de la mise à jour de l'email: ${error.message || 'Erreur inconnue'}`)
+    }
   }
 }
 
@@ -322,15 +328,25 @@ const updatePassword = async () => {
       return
     }
 
-    await api(`/api/users/${session.user.uuid}/change-password`, {
-      method: 'POST',
+    // Récupérer l'utilisateur actuel
+    const currentUser = await api(`/api/users/${session.user.uuid}`, {
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/ld+json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    // Mettre à jour le mot de passe
+    await api(`/api/users/${session.user.uuid}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/ld+json',
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        currentPassword: currentPassword.value,
-        newPassword: newPassword.value,
+        ...currentUser,
+        password: newPassword.value,
+        oldPassword: currentPassword.value, // Si votre API prend en charge cette vérification
       }),
     })
 
