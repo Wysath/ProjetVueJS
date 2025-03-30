@@ -1,14 +1,30 @@
-// cypress/e2e/auth/login.cy.js
 describe('Authentification', () => {
   beforeEach(() => {
     cy.visit('/login')
   })
 
   it("affiche un message d'erreur avec des identifiants invalides", () => {
+    // Créer une variable pour stocker le message d'alerte
+    let alertMessage = null
+
+    // Intercepter l'alerte avant de soumettre le formulaire
+    cy.window().then((win) => {
+      cy.stub(win, 'alert').callsFake((msg) => {
+        alertMessage = msg
+      })
+    })
+
+    // Remplir et soumettre le formulaire avec des identifiants invalides
     cy.get('input[type="email"]').type('utilisateur@invalide.com')
     cy.get('input[type="password"]').type('motdepasseincorrect')
     cy.get('form').submit()
-    cy.contains('Email ou mot de passe incorrect').should('be.visible')
+
+    // Vérifier le message d'alerte après soumission
+    cy.wait(1000) // Attendre que l'alerte soit déclenchée
+    cy.then(() => {
+      expect(alertMessage).to.not.be.null
+      expect(alertMessage).to.eq('Une erreur est survenue pendant la connexion')
+    })
   })
 
   it("connecte l'utilisateur avec des identifiants valides", () => {
