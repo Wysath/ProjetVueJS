@@ -72,10 +72,6 @@ Assurez-vous que le serveur backend est en cours d'exécution.
   ```bash
   npm run build
   ```
-- Pour prévisualiser la version de production :
-  ```bash
-  npm run preview
-  ```
 
 ---
 
@@ -85,17 +81,8 @@ Le projet utilise **Cypress** pour les tests end-to-end.
 
 - Ouvrir l'interface de Cypress :
   ```bash
-  npm run cypress:open
+  npx cypress open
   ```
-- Exécuter les tests en mode headless :
-  ```bash
-  npm run cypress:run
-  ```
-- Exécuter les tests avec le serveur de développement en cours d'exécution :
-  ```bash
-  npm run test:e2e
-  ```
-
 ---
 
 ## 📁 Structure du projet
