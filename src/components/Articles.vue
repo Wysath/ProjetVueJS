@@ -47,7 +47,6 @@
         </div>
 
         <div class="filter-buttons">
-          <button @click="fetchArticles" class="btn">Appliquer</button>
           <button @click="resetFilters" class="btn btn-outline">Réinitialiser</button>
         </div>
       </div>
@@ -115,7 +114,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { api } from '../services/api'
 
 const articles = ref([])
@@ -364,7 +363,6 @@ const resetFilters = () => {
   filters.authorName = ''
   filters.createdAt = ''
   filters.tag = ''
-  fetchArticles()
 }
 
 // Détection du scroll pour les animations
@@ -379,6 +377,26 @@ const handleScroll = () => {
     }
   })
 }
+
+function debounce(fn, delay = 300) {
+  let timeout
+  return function (...args) {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => fn.apply(this, args), delay)
+  }
+}
+
+// Fonction de recherche debounced
+const debouncedFetchArticles = debounce(fetchArticles, 400)
+
+// Ajouter un watch pour surveiller les changements de filtres
+watch(
+  filters,
+  () => {
+    debouncedFetchArticles()
+  },
+  { deep: true },
+)
 
 // Chargement initial des articles
 onMounted(() => {
