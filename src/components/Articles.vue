@@ -24,7 +24,7 @@
           <input
             id="author-filter"
             type="text"
-            v-model="filters.author_uuid"
+            v-model="filters.authorName"
             placeholder="Filtrer par auteur"
             class="glass-input"
           />
@@ -32,7 +32,7 @@
 
         <div class="filter-group">
           <label for="date-filter">Date</label>
-          <input id="date-filter" type="date" v-model="filters.created_at" class="glass-input" />
+          <input id="date-filter" type="date" v-model="filters.createdAt" class="glass-input" />
         </div>
 
         <div class="filter-group">
@@ -40,7 +40,7 @@
           <input
             id="tags-filter"
             type="text"
-            v-model="filters.tags"
+            v-model="filters.tag"
             placeholder="Filtrer par tags"
             class="glass-input"
           />
@@ -120,15 +120,66 @@ import { api } from '../services/api'
 
 const articles = ref([])
 const loading = ref(false)
+const allArticles = ref([])
+const authorCache = ref({})
 
 const filters = reactive({
-  author_uuid: '',
-  created_at: '',
-  title: '',
-  tags: '',
+  title: '', // Recherche par titre
+  authorName: '', // Nom de l'auteur
+  createdAt: '', // Format de date
+  tag: '', // Tag pour la recherche
 })
 
-// Formatage de date
+const fetchAuthorInfo = async (authorUrl) => {
+  if (!authorUrl || typeof authorUrl !== 'string') return null
+
+  // Si l'URL n'est pas dans le format attendu, on retourne null
+  if (!authorUrl.startsWith('/api/users/')) return null
+
+  const authorUuid = authorUrl.split('/').pop()
+
+  // Si on a déjà les infos en cache, on les renvoie directement
+  if (authorCache.value[authorUuid]) return authorCache.value[authorUuid]
+
+  try {
+    // Récupérer les infos de l'auteur depuis l'API
+    const userData = await api(`/api/users/${authorUuid}`, {}, false)
+
+    // Stocker dans le cache
+    authorCache.value[authorUuid] = {
+      uuid: authorUuid,
+      email: userData.email,
+      username: userData.email.split('@')[0], // Extraire la partie avant @
+      roles: userData.roles,
+    }
+
+    return authorCache.value[authorUuid]
+  } catch (error) {
+    console.error(
+      `Erreur lors de la récupération des informations de l'auteur ${authorUuid}:`,
+      error,
+    )
+    return null
+  }
+}
+
+const fetchAuthorsForArticles = async (articlesList) => {
+  // Récupérer tous les URLs d'auteurs uniques
+  const authorUrls = [
+    ...new Set(
+      articlesList
+        .filter((article) => article.author && typeof article.author === 'string')
+        .map((article) => article.author),
+    ),
+  ]
+
+  // Récupérer les infos pour tous les auteurs en parallèle
+  await Promise.all(authorUrls.map((url) => fetchAuthorInfo(url)))
+
+  console.log('Informations des auteurs récupérées:', Object.keys(authorCache.value).length)
+}
+
+// Formatage de date pour l'affichage
 const formatDate = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -190,29 +241,115 @@ const getArticleColorStyle = (article) => {
   }
 }
 
-// Récupération des articles
 const fetchArticles = async () => {
   loading.value = true
   try {
-    const params = new URLSearchParams()
+    // On ne filtre plus côté serveur puisque l'API ne gère pas correctement les filtres
+    // Envoyons seulement le filtre de titre qui semble être supporté par l'API
+    let requestUrl = '/api/contents'
 
-    if (filters.author_uuid) params.append('author_uuid', filters.author_uuid)
-    if (filters.created_at) params.append('created_at', filters.created_at)
-    if (filters.title) params.append('title', filters.title)
-    if (filters.tags) params.append('tags', filters.tags)
-
-    const response = await api(
-      `/api/contents${params.toString() ? '?' + params.toString() : ''}`,
-      {},
-      false,
-    )
-
-    if (response && response.member) {
-      articles.value = response.member
-    } else {
-      console.error('Format de réponse inattendu:', response)
-      articles.value = []
+    // Ajouter uniquement le filtre de titre à la requête API si l'API le supporte
+    if (filters.title && filters.title.trim()) {
+      requestUrl += `?title=${encodeURIComponent(filters.title.trim())}`
     }
+
+    console.log('URL de recherche:', requestUrl)
+
+    // Appel API pour récupérer les articles
+    const response = await api(requestUrl)
+    console.log('Réponse API brute:', response)
+
+    // Extraction des articles
+    let fetchedArticles = []
+    if (response && response.member && Array.isArray(response.member)) {
+      fetchedArticles = response.member
+      console.log('Articles extraits (format member):', fetchedArticles.length)
+    } else if (response && response['hydra:member'] && Array.isArray(response['hydra:member'])) {
+      fetchedArticles = response['hydra:member']
+    } else if (Array.isArray(response)) {
+      fetchedArticles = response
+    }
+
+    // Récupérer les infos des auteurs avant de filtrer
+    await fetchAuthorsForArticles(fetchedArticles)
+
+    // Stocker tous les articles non filtrés
+    allArticles.value = fetchedArticles
+
+    // Filtrage côté client pour TOUS les filtres
+    let filteredArticles = [...fetchedArticles]
+
+    // 1. Filtre par auteur (si spécifié) - AMÉLIORÉ pour chercher dans le nom d'utilisateur
+    if (filters.authorName && filters.authorName.trim()) {
+      const authorSearch = filters.authorName.trim().toLowerCase()
+      filteredArticles = filteredArticles.filter((article) => {
+        // Si author est au format URI /api/users/{uuid}
+        if (typeof article.author === 'string' && article.author.startsWith('/api/users/')) {
+          const authorUuid = article.author.split('/').pop()
+
+          // Recherche dans le cache d'auteurs
+          const authorInfo = authorCache.value[authorUuid]
+
+          if (authorInfo) {
+            // Vérifier si la recherche correspond au nom d'utilisateur ou à l'email complet
+            return (
+              authorInfo.username.toLowerCase().includes(authorSearch) ||
+              authorInfo.email.toLowerCase().includes(authorSearch)
+            )
+          }
+
+          // Fallback: recherche dans l'UUID si les infos auteur ne sont pas disponibles
+          return authorUuid.toLowerCase().includes(authorSearch)
+        }
+
+        // Autres formats possibles d'auteur (chaîne, objet)
+        else if (typeof article.author === 'string') {
+          return article.author.toLowerCase().includes(authorSearch)
+        }
+        // Si l'auteur est un objet avec un nom
+        else if (article.author && article.author.name) {
+          return article.author.name.toLowerCase().includes(authorSearch)
+        }
+        // Si l'API stocke le nom de l'auteur dans un autre champ
+        else if (article.authorName) {
+          return article.authorName.toLowerCase().includes(authorSearch)
+        }
+        return false
+      })
+      console.log(
+        `Filtrage côté client par auteur "${filters.authorName}": ${filteredArticles.length} articles trouvés`,
+      )
+    }
+
+    // 2. Filtre par date (si spécifiée)
+    if (filters.createdAt) {
+      const searchDate = filters.createdAt // Format YYYY-MM-DD
+      filteredArticles = filteredArticles.filter((article) => {
+        if (!article.createdAt) return false
+
+        // Convertir la date de l'article au format YYYY-MM-DD pour la comparaison
+        const articleDate = new Date(article.createdAt).toISOString().split('T')[0]
+        return articleDate === searchDate
+      })
+      console.log(
+        `Filtrage côté client par date "${filters.createdAt}": ${filteredArticles.length} articles trouvés`,
+      )
+    }
+
+    // 3. Filtre par tags (si spécifié)
+    if (filters.tag && filters.tag.trim()) {
+      const searchTag = filters.tag.trim().toLowerCase()
+      filteredArticles = filteredArticles.filter(
+        (article) =>
+          article.tags && article.tags.some((tag) => tag.toLowerCase().includes(searchTag)),
+      )
+      console.log(
+        `Filtrage côté client par tag "${filters.tag}": ${filteredArticles.length} articles trouvés`,
+      )
+    }
+
+    // Assigner les articles filtrés
+    articles.value = filteredArticles
   } catch (error) {
     console.error('Erreur lors de la récupération des articles:', error)
     articles.value = []
@@ -223,22 +360,20 @@ const fetchArticles = async () => {
 
 // Réinitialisation des filtres
 const resetFilters = () => {
-  filters.author_uuid = ''
-  filters.created_at = ''
   filters.title = ''
-  filters.tags = ''
+  filters.authorName = ''
+  filters.createdAt = ''
+  filters.tag = ''
   fetchArticles()
 }
 
 // Détection du scroll pour les animations
 const handleScroll = () => {
   const reveals = document.querySelectorAll('.reveal')
-
   reveals.forEach((element) => {
     const windowHeight = window.innerHeight
     const elementTop = element.getBoundingClientRect().top
     const elementVisible = 150
-
     if (elementTop < windowHeight - elementVisible) {
       element.classList.add('active')
     }
@@ -249,7 +384,7 @@ const handleScroll = () => {
 onMounted(() => {
   fetchArticles()
   window.addEventListener('scroll', handleScroll)
-  handleScroll() // Appel initial pour les éléments visibles
+  handleScroll()
 })
 </script>
 

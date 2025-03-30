@@ -159,4 +159,4 @@ Ce projet est sous licence **MIT**.
 ## 👤 Auteur
 
 Louna Petitfils
-Cette documentation a été générée le **29 mars 2025**.
+Documentation mise à jour le **29 mars 2025**.

@@ -12,6 +12,50 @@ export const getUserUuid = () => {
   return sessionStorage.getItem('userUuid') // Récupère l'UUID stocké dans le localStorage
 }
 
+export async function uploadFile(file, progressCallback = null) {
+  const token = sessionStorage.getItem('token')
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const xhr = new XMLHttpRequest()
+
+  return new Promise((resolve, reject) => {
+    if (progressCallback && typeof progressCallback === 'function') {
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100)
+          progressCallback(percentComplete)
+        }
+      })
+    }
+
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText)
+          resolve(response)
+        } catch (e) {
+          reject(new Error('Erreur lors du parsing de la réponse'))
+        }
+      } else {
+        reject(new Error(`Erreur lors de l'upload: ${xhr.status}`))
+      }
+    }
+
+    xhr.onerror = function () {
+      reject(new Error("Erreur réseau lors de l'upload"))
+    }
+
+    xhr.open('POST', `${BASE_URL}/api/upload`, true)
+
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    }
+
+    xhr.send(formData)
+  })
+}
+
 // Fonction de requête API générale
 export async function api(url, params = {}, requiresAuth = true) {
   const token = sessionStorage.getItem('token')
