@@ -210,11 +210,19 @@ describe('Parcours utilisateur administrateur', () => {
     cy.visit('/admin')
 
     // Vérifier qu'on est redirigé ou qu'un message d'erreur apparaît
-    cy.url()
-      .should('not.include', '/admin')
-      .or('contain', '/login')
-      .or(() => {
-        cy.contains(/non autorisé|permissions|accès refusé/i).should('be.visible')
-      })
+    // Version corrigée avec une approche plus robuste
+    cy.get('body').then(($body) => {
+      // Vérifier l'URL actuelle
+      const currentUrl = window.location.href
+      const isAdmin = currentUrl.includes('/admin')
+
+      if (!isAdmin) {
+        // Cas 1: Redirection hors de la page admin (succès)
+        cy.url().should('not.include', '/admin')
+      } else {
+        // Cas 2: Toujours sur admin mais avec un message d'erreur (succès)
+        cy.contains(/non autorisé|permissions|accès refusé|login required/i).should('be.visible')
+      }
+    })
   })
 })

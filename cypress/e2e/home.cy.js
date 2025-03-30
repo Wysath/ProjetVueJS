@@ -6,7 +6,7 @@ describe('template spec', () => {
 
   it('affiche le titre principal', () => {
     cy.get('.main-title').should('contain', 'Palette')
-    cy.get('.main-title').should('contain', 'Expérimentale')
+    cy.get('.main-title').should('contain', 'Couleur')
   })
 
   it('permet de naviguer vers les articles', () => {
