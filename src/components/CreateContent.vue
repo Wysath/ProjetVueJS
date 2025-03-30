@@ -286,26 +286,23 @@ const uploadFile = async () => {
 
 // Méthode de création de contenu mise à jour
 const createContent = async () => {
-  // Vérifiez si l'utilisateur a les rôles nécessaires
+  // Vérifications des droits...
   if (!hasRole('ROLE_SUBSCRIBER') && !hasRole('ROLE_ADMIN')) {
     alert("Vous n'avez pas l'autorisation de créer du contenu.")
     return
   }
 
   try {
-    // Désactiver le bouton pendant le traitement
     isUploading.value = true
 
-    // Si une image est sélectionnée, la télécharger d'abord
     let imageUrl = null
-
     if (imageSource.value === 'file' && selectedFile.value) {
       console.log('Upload du fichier en cours...')
       imageUrl = await uploadFile()
       if (!imageUrl) {
         console.error("L'upload a échoué, arrêt de la création d'article")
         isUploading.value = false
-        return // Arrêter si l'upload a échoué
+        return
       }
       console.log('Upload réussi, URL:', imageUrl)
     } else if (imageSource.value === 'url' && coverImageUrl.value) {
@@ -314,37 +311,69 @@ const createContent = async () => {
     }
 
     // Préparation des tags
-    const tagsList = tags.value
-      ? tags.value
+    const tagsValue = tags.value ? tags.value.trim() : ''
+    const tagsList = tagsValue
+      ? tagsValue
           .split(',')
           .map((tag) => tag.trim())
           .filter((tag) => tag)
       : []
+    console.log('Tags à ajouter:', tagsList)
 
-    // Préparez les données pour la requête
-    const requestBody = {
+    // ÉTAPE 1: Créer l'article sans les tags
+    const initialRequestBody = {
       title: title.value,
       content: content.value,
       coverImage: imageUrl,
       metaDescription: metaDescription.value,
-      tags: tagsList,
+      // Ne pas inclure les tags ici
     }
 
-    console.log('Envoi de la requête avec:', requestBody)
+    console.log("Création de l'article (sans tags):", initialRequestBody)
 
-    // Envoyez la requête pour créer le contenu
     const response = await api('/api/contents', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/ld+json',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(initialRequestBody),
     })
 
-    if (response) {
+    if (response && response.uuid) {
       console.log('Article créé avec succès:', response)
+
+      // ÉTAPE 2: Mettre à jour l'article pour ajouter les tags (si présents)
+      if (tagsList.length > 0) {
+        try {
+          console.log(`Ajout des tags à l'article ${response.uuid}:`, tagsList)
+
+          // Mise à jour avec PUT pour ajouter les tags
+          const updateResponse = await api(`/api/contents/${response.uuid}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/ld+json',
+            },
+            body: JSON.stringify({
+              // Inclure les champs requis par l'API
+              title: response.title,
+              metaDescription: response.metaDescription,
+              // Ajouter le contenu
+              content: response.content || content.value,
+              // Ajouter l'image (si présente dans la réponse ou la requête)
+              coverImage: response.coverImage || imageUrl,
+              // Ajouter les tags
+              tags: tagsList,
+            }),
+          })
+
+          console.log('Mise à jour des tags réussie:', updateResponse)
+        } catch (tagError) {
+          console.error("Erreur lors de l'ajout des tags:", tagError)
+          // Ne pas bloquer le processus en cas d'erreur
+        }
+      }
+
       alert('Article créé avec succès!')
-      // Rediriger vers la page de l'article nouvellement créé
       router.push(`/articles/${response.uuid}`)
     } else {
       alert("Échec de la création de l'article")
@@ -356,6 +385,7 @@ const createContent = async () => {
     isUploading.value = false
   }
 }
+
 // Réinitialisation du formulaire
 const resetForm = () => {
   title.value = ''
